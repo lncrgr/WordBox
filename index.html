@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WORD RUNNER // B-01</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div id="vignette-layer"></div>
+    <div id="app">
+        <div id="game-viewport">
+            <canvas id="game-canvas"></canvas>
+
+            <div id="ui-overlay">
+                <div id="stats-panel">
+                    <div class="stat">SCORE: <span id="score-val">0000</span></div>
+                    <div class="stat">INTEGRITY: <span id="health-val">100%</span></div>
+                    <div id="combo-panel" class="hidden">COMBO: x<span id="combo-val">0</span></div>
+                </div>
+            </div>
+
+            <div id="lobby-screen" class="overlay">
+                <div class="modal">
+                    <div id="user-status-bar">
+                        <span id="user-greeting">GUEST_MODE</span>
+                        <span id="points-display" class="hidden">POINTS: <span id="user-points">0</span></span>
+                        <button id="shop-open-btn" class="hidden">SHOP</button>
+                        <button id="auth-btn">LOGIN/REGISTER</button>
+                        <button id="stats-open-btn">DATACENTER</button>
+                        <button id="profile-btn" class="hidden">MY_PROFILE</button>
+                        <button id="logout-btn" class="hidden">LOGOUT</button>
+                    </div>
+                    <h1>WORD_RUNNER // INIT</h1>
+                    <p>SELECT SECTOR DIFFICULTY_LEVEL</p>
+                    <div class="difficulty-options">
+                        <button class="diff-btn" data-diff="EASY">MODE_EASY</button>
+                        <button class="diff-btn" data-diff="MEDIUM">MODE_MEDIUM</button>
+                        <button class="diff-btn" data-diff="HARD">MODE_HARD</button>
+                    </div>
+
+                    <div id="keyboard-guide">
+                        <h3>INPUT_PROTOCOL:</h3>
+                        <ul>
+                            <li>- ACCENTS: NONE (É &rarr; E)</li>
+                            <li>- LIGATURES: SEPARATED (Œ &rarr; OE)</li>
+                            <li>- CASE: INSENSITIVE</li>
+                        </ul>
+                    </div>
+
+                    <div id="leaderboard-section">
+                        <h2>GLOBAL_RANKINGS</h2>
+                        <div class="leaderboard-tabs" id="global-tabs">
+                            <button class="tab-btn active" data-tab-diff="EASY">EASY</button>
+                            <button class="tab-btn" data-tab-diff="MEDIUM">MEDIUM</button>
+                            <button class="tab-btn" data-tab-diff="HARD">HARD</button>
+                        </div>
+                        <div id="leaderboard-data">
+                            <!-- Leaderboard injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="game-over-screen" class="overlay hidden">
+                <div class="modal">
+                    <h1>SYSTEM_HALT</h1>
+                    <p>CORE_INTEGRITY_ZERO // SECTOR_LOST</p>
+                    <div id="final-stats">SCORE: <span id="final-score">0000</span></div>
+                    <div id="save-score-prompt" class="hidden">
+                        <p>PROMPT: REGISTER_ACCOUNT TO STORE_RANKING PERMANENTLY.</p>
+                        <button id="prompt-register-btn">INITIALIZE_ACCOUNT</button>
+                    </div>
+                    <button id="restart-btn">RE_INITIALIZE</button>
+                </div>
+            </div>
+
+            <div id="auth-modal" class="overlay hidden">
+                <div class="modal">
+                    <h1 id="auth-title">ACCESS_REQUISITION</h1>
+                    <div id="login-form">
+                        <input type="text" id="login-username" placeholder="USERNAME" class="brutalist-input">
+                        <input type="password" id="login-password" placeholder="PASSWORD" class="brutalist-input">
+                        <button id="do-login-btn">EXECUTE_LOGIN</button>
+                        <p>OR <a href="#" id="toggle-to-register">CREATE_IDENTIFICATION</a></p>
+                    </div>
+                    <div id="register-form" class="hidden">
+                        <input type="text" id="register-username" placeholder="USERNAME" class="brutalist-input">
+                        <input type="password" id="register-password" placeholder="PASSWORD" class="brutalist-input">
+                        <button id="do-register-btn">GENERATE_IDENTITY</button>
+                        <p>OR <a href="#" id="toggle-to-login">EXISTING_LOGIN</a></p>
+                    </div>
+                    <button class="close-modal-btn">ABORT_AUTH</button>
+                </div>
+            </div>
+
+            <div id="profile-screen" class="overlay hidden">
+                <div class="modal">
+                    <h1>IDENTITY_DATABANK: <span id="profile-username">...</span></h1>
+                    <div id="personal-leaderboard-section">
+                        <h2>PERSONAL_TOP_10</h2>
+                        <div class="leaderboard-tabs" id="personal-tabs">
+                            <button class="tab-btn active" data-tab-diff="EASY">EASY</button>
+                            <button class="tab-btn" data-tab-diff="MEDIUM">MEDIUM</button>
+                            <button class="tab-btn" data-tab-diff="HARD">HARD</button>
+                        </div>
+                        <div id="my-rankings">
+                            <!-- My Top scores injected here -->
+                        </div>
+                    </div>
+                    <button class="close-modal-btn">CLOSE_DATABANK</button>
+                </div>
+            </div>
+
+            <div id="stats-modal" class="overlay hidden">
+                <div class="modal large-modal">
+                    <h1>GLOBAL_ANALYTICS_CENTER</h1>
+                    <div id="stats-controls">
+                        <button class="stats-type-btn active" data-type="line">LINE_CHART</button>
+                        <button class="stats-type-btn" data-type="bar">HISTOGRAM</button>
+                        <button class="stats-type-btn" data-type="scatter">SCATTER_PLOT</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="stats-canvas"></canvas>
+                    </div>
+                    <button class="close-modal-btn">CLOSE_ANALYTICS</button>
+                </div>
+            </div>
+
+            <div id="shop-modal" class="overlay hidden">
+                <div class="modal large-modal">
+                    <h1>REQUISITION_OFFICE // THEME_SHOP</h1>
+                    <div id="shop-balance">BAL: <span id="shop-points-val">0</span> PT</div>
+                    <div id="shop-items-container">
+                        <!-- Shop items injected here -->
+                    </div>
+                    <button class="close-modal-btn">EXIT_SHOP</button>
+                </div>
+            </div>
+
+            <div id="notification-container"></div>
+        </div>
+
+        <footer id="terminal-footer">
+            <div id="terminal-container">
+                <div class="terminal-body" id="terminal-output">
+                    <p class="system-msg">> BOOT_SEQUENCE_COMPLETE... STANDBY.</p>
+                </div>
+                <div class="terminal-input-line">
+                    <span class="prompt">USER:</span>
+                    <input type="text" id="cmd-input" autofocus autocomplete="off" spellcheck="false" disabled>
+                </div>
+            </div>
+        </footer>
+    </div>
+    <script src="main.js" type="module"></script>
+</body>
+
+</html>
