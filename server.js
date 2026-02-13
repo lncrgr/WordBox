@@ -6,14 +6,36 @@ import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import fs from 'fs/promises';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = 3000;
-const SECRET_KEY = 'word-runner-secret'; // In a real app, use .env
+const SECRET_KEY = process.env.JWT_SECRET || 'word-runner-secret';
 
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable for development simplicity if needed, or configure properly
+}));
 app.use(cors());
 app.use(express.json());
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: { error: 'TOO_MANY_REQUESTS' }
+});
+
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 register/login attempts per hour
+    message: { error: 'AUTH_THROTTLED_TRY_LATER' }
+});
+
+app.use('/api/', limiter);
+app.use('/api/register', authLimiter);
+app.use('/api/login', authLimiter);
 // Routes will be moved before this in previous step
 
 // --- Database Setup ---
@@ -53,6 +75,18 @@ let db;
     // Migration for existing tables
     try { await db.exec('ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0'); } catch (e) { }
     try { await db.exec('ALTER TABLE users ADD COLUMN active_theme TEXT DEFAULT "BRUTALIST"'); } catch (e) { }
+})();
+
+// --- Word Validation Setup ---
+let validWords = new Set();
+(async () => {
+    try {
+        const data = await fs.readFile('./liste_sans_accents.txt', 'utf-8');
+        validWords = new Set(data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 2));
+        console.log(`Loaded ${validWords.size} valid words for verification.`);
+    } catch (e) {
+        console.error('Failed to load word list for verification:', e);
+    }
 })();
 
 // --- Shop Definitions ---
@@ -100,13 +134,39 @@ app.post('/api/login', async (req, res) => {
 
 // --- Score Routes ---
 app.post('/api/scores', async (req, res) => {
-    const { score, difficulty } = req.body;
+    const { score, difficulty, wordsTyped } = req.body;
     const authHeader = req.headers.authorization;
 
     if (!authHeader) return res.status(401).json({ error: 'UNAUTHORIZED' });
 
     try {
         const decoded = jwt.verify(authHeader.split(' ')[1], SECRET_KEY);
+
+        // Security: Validation score and wordsTyped
+        if (typeof score !== 'number' || !Array.isArray(wordsTyped)) {
+            return res.status(400).json({ error: 'INVALID_DATA_FORMAT' });
+        }
+
+        // Basic server-side score verification
+        let calculatedScore = 0;
+        let combo = 0;
+        for (const word of wordsTyped) {
+            if (validWords.has(word.toUpperCase())) {
+                calculatedScore += 100 * (1 + Math.floor(combo / 5));
+                combo++;
+            } else {
+                // If an invalid word is found, someone might be cheating
+                console.warn(`Cheating attempt detected for user ${decoded.username}: Invalid word ${word}`);
+            }
+        }
+
+        // Allow some margin of error for power-ups (which aren't in wordsTyped right now)
+        // In a real app, we'd track those too.
+        if (score > calculatedScore + 1000) { // Tolerance for power-up scores
+            console.warn(`Score mismatch for user ${decoded.username}: Client ${score} vs Server ${calculatedScore}`);
+            return res.status(403).json({ error: 'SCORE_VERIFICATION_FAILED' });
+        }
+
         await db.run('INSERT INTO scores (user_id, score, difficulty) VALUES (?, ?, ?)',
             [decoded.id, score, difficulty]);
 
@@ -116,6 +176,7 @@ app.post('/api/scores', async (req, res) => {
 
         res.json({ success: true, pointsAwarded });
     } catch (e) {
+        console.error('Score submission error:', e);
         res.status(401).json({ error: 'INVALID_TOKEN' });
     }
 });

@@ -61,6 +61,7 @@ let state = {
     points: 0,
     activeTheme: 'BRUTALIST',
     ownedThemes: [],
+    wordsTyped: [], // To track for server-side verification
     canvasPrimary: '#1a1a1a',
     canvasBg: '#fff',
     bgParticles: []
@@ -609,6 +610,7 @@ function startGame(difficulty) {
     state.effects = [];
     state.combo = 0;
     updateComboUI();
+    state.wordsTyped = [];
     state.lastSpawn = 0;
     state.lastPowerupSpawn = 0;
     state.slowMode = false;
@@ -662,6 +664,7 @@ function handleInput(e) {
                 } else {
                     state.score += 100 * (1 + Math.floor(state.combo / 5));
                     state.combo++;
+                    state.wordsTyped.push(val);
 
                     // Spawn particles
                     spawnParticles(target.x + target.width / 2, target.y, '#1a1a1a');
@@ -987,7 +990,11 @@ async function endGame() {
 
     if (state.user) {
         saveScorePrompt.classList.add('hidden');
-        const res = await apiCall('/scores', 'POST', { score: state.score, difficulty: state.difficulty });
+        const res = await apiCall('/scores', 'POST', {
+            score: state.score,
+            difficulty: state.difficulty,
+            wordsTyped: state.wordsTyped
+        });
         if (res.pointsAwarded) {
             state.points += res.pointsAwarded;
             logToTerminal(`RANKING_SAVED. POINTS_EARNED: +${res.pointsAwarded}`);
